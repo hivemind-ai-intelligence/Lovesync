@@ -1,0 +1,265 @@
+Continue building OURROOM ❤️.
+
+Part 2: Build the complete Music Room.
+
+Do not modify the login system or homepage created in Part 1.
+
+Create a premium Apple Music + Spotify inspired experience.
+
+Tech Stack:
+- Next.js 15
+- React
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- Socket.IO
+- YouTube Data API v3
+- YouTube IFrame Player API
+
+====================================
+MUSIC ROOM
+====================================
+
+Create a beautiful full-screen music room.
+
+Only two people will ever use this application:
+Vasudev and Sana.
+
+The room should feel emotional, premium and cinematic.
+
+====================================
+YOUTUBE
+====================================
+
+Implement YouTube Data API v3 search.
+
+Features:
+
+- Search songs
+- Search artists
+- Search albums
+- Search playlists
+- Search videos
+
+Display:
+
+- Thumbnail
+- Song title
+- Channel
+- Duration
+
+Buttons:
+
+Play Now
+
+Add to Queue
+
+====================================
+PLAYER
+====================================
+
+Use YouTube IFrame Player API.
+
+Create a custom player UI.
+
+Do not use default YouTube controls.
+
+Features:
+
+Play
+
+Pause
+
+Next
+
+Previous
+
+Seek
+
+Progress bar
+
+Volume
+
+Mute
+
+Shuffle
+
+Repeat
+
+Fullscreen
+
+Mini Player
+
+Current song title
+
+Channel
+
+Thumbnail
+
+Large rotating artwork animation
+
+Dynamic colors extracted from artwork
+
+====================================
+REALTIME SYNC
+====================================
+
+Use Socket.IO.
+
+Everything must synchronize.
+
+If Vasudev presses Play
+
+Sana's player immediately starts.
+
+If Sana pauses
+
+Vasudev pauses.
+
+If someone seeks
+
+Both players seek to the same timestamp.
+
+If a new user joins
+
+Automatically synchronize current playback.
+
+Keep synchronization smooth.
+
+====================================
+QUEUE
+====================================
+
+Create a shared queue.
+
+Features:
+
+Drag and drop reorder
+
+Remove song
+
+Clear queue
+
+Add Next
+
+Autoplay next song
+
+Realtime queue synchronization
+
+====================================
+ANIMATIONS
+====================================
+
+Use Framer Motion everywhere.
+
+Smooth transitions.
+
+Artwork rotates while playing.
+
+Buttons glow.
+
+Ripple effects.
+
+Floating particles.
+
+Soft blur.
+
+Glassmorphism.
+
+Gradient lighting.
+
+Premium hover animations.
+
+====================================
+BACKGROUND
+====================================
+
+Create animated backgrounds.
+
+Themes:
+
+Aurora
+
+Space
+
+Rain
+
+Lofi
+
+Neon
+
+Sunset
+
+Background colors should react to current song thumbnail.
+
+====================================
+VISUALIZER
+====================================
+
+Create a premium audio visualizer.
+
+Bars should animate smoothly while music plays.
+
+Add subtle glow.
+
+====================================
+RESPONSIVE
+====================================
+
+Perfect support for:
+
+Android
+
+iPhone
+
+Tablet
+
+Desktop
+
+====================================
+PERFORMANCE
+====================================
+
+Lazy load player.
+
+Debounce search.
+
+Optimize rendering.
+
+Maintain smooth 60 FPS animations.
+
+====================================
+ERROR HANDLING
+====================================
+
+Handle:
+
+No internet
+
+API failure
+
+Video unavailable
+
+Queue errors
+
+Socket disconnect
+
+Show beautiful animated error messages.
+
+====================================
+CODE QUALITY
+====================================
+
+Reusable components.
+
+Professional folder structure.
+
+Strict TypeScript.
+
+Production-ready.
+
+No placeholder UI.
+
+No unfinished features.
+
+Continue generating until every feature in this prompt is fully implemented.
