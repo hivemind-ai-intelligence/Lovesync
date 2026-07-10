@@ -1,0 +1,1 @@
+- [OURROOM auth architecture](ourroom-auth.md) — JWT via SESSION_SECRET; token stored in AsyncStorage; all protected routes require Bearer header.

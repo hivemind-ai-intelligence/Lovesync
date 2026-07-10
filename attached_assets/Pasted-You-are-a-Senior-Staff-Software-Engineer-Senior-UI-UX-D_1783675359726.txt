@@ -1,0 +1,474 @@
+You are a Senior Staff Software Engineer, Senior UI/UX Designer and Product Designer.
+
+Your task is to build a premium private web application named
+
+OURROOM ❤️
+
+This application is NOT a social network.
+
+This application is NOT public.
+
+This application exists for only TWO PEOPLE.
+
+Owner:
+Vasudev
+
+Partner:
+Sana
+
+The application should feel emotional, premium, modern and cinematic.
+
+The design inspiration should come from
+
+Apple
+Nothing
+Spotify
+Arc Browser
+Linear
+Raycast
+
+Never use boring bootstrap looking components.
+
+Everything must feel handcrafted.
+
+--------------------------------------------------
+TECH STACK
+--------------------------------------------------
+
+Use
+
+Next.js 15
+React
+TypeScript
+Tailwind CSS
+Framer Motion
+
+Use App Router.
+
+Component architecture must be clean.
+
+Create reusable components.
+
+Never write duplicate code.
+
+--------------------------------------------------
+PROJECT STRUCTURE
+--------------------------------------------------
+
+Create folders
+
+/app
+
+/components
+
+/components/ui
+
+/components/layout
+
+/components/buttons
+
+/components/cards
+
+/components/background
+
+/components/animations
+
+/components/player
+
+/components/chat
+
+/components/navbar
+
+/components/sidebar
+
+/hooks
+
+/lib
+
+/utils
+
+/styles
+
+/public
+
+--------------------------------------------------
+GLOBAL DESIGN SYSTEM
+--------------------------------------------------
+
+Entire application uses Dark Theme only.
+
+Primary Background
+
+#05060A
+
+Secondary
+
+#0E1117
+
+Accent
+
+#7C5CFF
+
+Accent Hover
+
+#9F84FF
+
+Glass Color
+
+rgba(255,255,255,0.08)
+
+Border
+
+rgba(255,255,255,0.12)
+
+Text
+
+White
+
+Secondary Text
+
+#A6A9B5
+
+Radius
+
+24px
+
+Cards
+
+Glassmorphism
+
+Backdrop Blur
+
+Large
+
+Soft shadows
+
+--------------------------------------------------
+TYPOGRAPHY
+--------------------------------------------------
+
+Use
+
+Inter
+
+Bold
+
+SemiBold
+
+Regular
+
+Headings must look premium.
+
+Spacing should feel like Apple.
+
+--------------------------------------------------
+ANIMATIONS
+--------------------------------------------------
+
+Use Framer Motion everywhere.
+
+Every page transition
+
+Fade
+
+Slide
+
+Blur
+
+Every button
+
+Scale
+
+Glow
+
+Hover
+
+Every card
+
+Float animation
+
+Every modal
+
+Smooth spring animation
+
+Nothing should instantly appear.
+
+--------------------------------------------------
+CURSOR
+--------------------------------------------------
+
+Create glowing cursor effect.
+
+Small animated cursor trail.
+
+--------------------------------------------------
+BACKGROUND
+--------------------------------------------------
+
+Animated Aurora Background.
+
+Floating particles.
+
+Very subtle.
+
+Should not reduce performance.
+
+--------------------------------------------------
+LOADING SCREEN
+--------------------------------------------------
+
+Animated logo.
+
+Text
+
+"Loading OurRoom..."
+
+Smooth fade.
+
+--------------------------------------------------
+LOGIN SYSTEM
+--------------------------------------------------
+
+DO NOT USE
+
+Firebase Auth
+
+Supabase Auth
+
+Google Login
+
+Github Login
+
+OAuth
+
+No Signup
+
+No Registration
+
+No Forgot Password
+
+Create ONE simple private login page.
+
+This website is hidden.
+
+Credentials should never be displayed anywhere in the UI.
+
+Read username and password from environment variables (.env.local), not hardcoded in the visible frontend.
+
+If login succeeds:
+
+Store secure session.
+
+Redirect to Home.
+
+Remember session until logout.
+
+If login fails
+
+Shake login card
+
+Show animated error
+
+Use red glow
+
+Never reveal which field is incorrect.
+
+--------------------------------------------------
+LOGIN PAGE UI
+--------------------------------------------------
+
+Center glass card.
+
+Aurora background.
+
+Animated stars.
+
+Application logo.
+
+Title
+
+"OurRoom"
+
+Subtitle
+
+"A place only for us."
+
+Username input
+
+Password input
+
+Show Password toggle
+
+Animated Login button
+
+Hover glow
+
+Press animation
+
+Enter key submits login
+
+Loading spinner while authenticating.
+
+Responsive.
+
+Looks amazing on phones.
+
+--------------------------------------------------
+HOME PAGE
+--------------------------------------------------
+
+After login
+
+Open Home.
+
+Large greeting.
+
+Example
+
+Welcome Back ❤️
+
+Below it
+
+"Together feels better."
+
+Show current date.
+
+Show current time.
+
+Show connection status.
+
+Small animated status indicator.
+
+--------------------------------------------------
+HOME BUTTONS
+--------------------------------------------------
+
+Large premium buttons.
+
+Music Room
+
+Playlist
+
+Chat
+
+Settings
+
+Each button
+
+Gradient
+
+Glow
+
+Hover animation
+
+Ripple effect
+
+--------------------------------------------------
+QUICK INFO CARD
+--------------------------------------------------
+
+Beautiful floating card.
+
+Shows
+
+Current Theme
+
+Online Status
+
+Room Status
+
+Next Anniversary placeholder
+
+--------------------------------------------------
+NAVBAR
+--------------------------------------------------
+
+Minimal.
+
+Glass.
+
+Contains
+
+Logo
+
+Home
+
+Music
+
+Chat
+
+Settings
+
+Logout
+
+Sticky.
+
+--------------------------------------------------
+SIDEBAR
+--------------------------------------------------
+
+Desktop only.
+
+Collapsible.
+
+Smooth animation.
+
+--------------------------------------------------
+RESPONSIVE
+--------------------------------------------------
+
+Perfect for
+
+Android
+
+iPhone
+
+Tablet
+
+Desktop
+
+No overflow.
+
+No layout breaking.
+
+--------------------------------------------------
+PERFORMANCE
+--------------------------------------------------
+
+Lazy load everything.
+
+Optimize fonts.
+
+Optimize images.
+
+Avoid unnecessary rerenders.
+
+--------------------------------------------------
+ACCESSIBILITY
+--------------------------------------------------
+
+Keyboard navigation.
+
+Focus states.
+
+Semantic HTML.
+
+--------------------------------------------------
+CODE QUALITY
+--------------------------------------------------
+
+Professional folder structure.
+
+Reusable components.
+
+Proper TypeScript.
+
+No placeholder UI.
+
+No lorem ipsum.
+
+No TODO comments.
+
+Everything production ready.
+
+If any feature is incomplete, continue implementing automatically until Part 1 is fully complete before stopping.
