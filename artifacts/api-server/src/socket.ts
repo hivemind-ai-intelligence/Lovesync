@@ -3,7 +3,9 @@ import { Server as SocketIOServer } from "socket.io";
 import jwt from "jsonwebtoken";
 import { logger } from "./lib/logger";
 
-/** Shared playback state, kept in memory only (not persisted to the DB). */
+export type RepeatMode = "off" | "one" | "all";
+
+/** Shared playback state, kept in memory (not persisted to the DB). */
 interface PlaybackState {
   queueSongId: number | null;
   videoId: string | null;
@@ -11,6 +13,8 @@ interface PlaybackState {
   positionSeconds: number;
   /** epoch ms when positionSeconds was last authoritative */
   updatedAt: number;
+  shuffle: boolean;
+  repeat: RepeatMode;
 }
 
 const state: PlaybackState = {
@@ -19,9 +23,18 @@ const state: PlaybackState = {
   isPlaying: false,
   positionSeconds: 0,
   updatedAt: Date.now(),
+  shuffle: false,
+  repeat: "off",
 };
 
-/** Registers the Socket.IO server on the given HTTP server for real-time playback sync. */
+/** username → Set of socket IDs (handles multi-tab correctly) */
+const userSocketMap = new Map<string, Set<string>>();
+
+function connectedUsernames(): string[] {
+  return Array.from(userSocketMap.keys());
+}
+
+/** Registers the Socket.IO server on the given HTTP server. */
 export function setupSocket(httpServer: HttpServer): SocketIOServer {
   const io = new SocketIOServer(httpServer, {
     path: "/api/socket.io",
@@ -48,13 +61,19 @@ export function setupSocket(httpServer: HttpServer): SocketIOServer {
     const username = socket.data["username"] as string;
     logger.info({ username }, "Socket connected");
 
+    // Track user presence (per socket-ID so multi-tab works correctly)
+    const existingSockets = userSocketMap.get(username) ?? new Set<string>();
+    existingSockets.add(socket.id);
+    userSocketMap.set(username, existingSockets);
+    io.emit("users:update", connectedUsernames());
+
+    // Send current state to the newly connected client
     socket.emit("playback:sync", state);
 
     socket.on("playback:update", (raw: unknown) => {
       if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
       const payload = raw as Record<string, unknown>;
 
-      // Whitelist allowed keys and validate types/ranges before applying.
       const next: Partial<PlaybackState> = {};
 
       if ("queueSongId" in payload) {
@@ -80,9 +99,21 @@ export function setupSocket(httpServer: HttpServer): SocketIOServer {
           next.positionSeconds = v;
         }
       }
+      if ("shuffle" in payload) {
+        if (typeof payload["shuffle"] === "boolean") {
+          next.shuffle = payload["shuffle"];
+        }
+      }
+      if ("repeat" in payload) {
+        const v = payload["repeat"];
+        if (v === "off" || v === "one" || v === "all") {
+          next.repeat = v;
+        }
+      }
 
       Object.assign(state, next, { updatedAt: Date.now() });
-      socket.broadcast.emit("playback:sync", state);
+      // Broadcast to ALL clients (including sender) so state stays consistent
+      io.emit("playback:sync", state);
     });
 
     socket.on("queue:changed", () => {
@@ -91,6 +122,12 @@ export function setupSocket(httpServer: HttpServer): SocketIOServer {
 
     socket.on("disconnect", () => {
       logger.info({ username }, "Socket disconnected");
+      const sockets = userSocketMap.get(username);
+      if (sockets) {
+        sockets.delete(socket.id);
+        if (sockets.size === 0) userSocketMap.delete(username);
+      }
+      io.emit("users:update", connectedUsernames());
     });
   });
 

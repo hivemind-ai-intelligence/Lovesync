@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { QueueSong } from "@workspace/api-client-react";
-import { GripVertical, X, Music2 } from "lucide-react";
-import { formatTime, formatDuration } from "@/lib/youtube";
+import { GripVertical, X, Music2, Trash2, Play, ChevronDown, ChevronUp } from "lucide-react";
+import { formatDuration } from "@/lib/youtube";
 
 interface QueuePanelProps {
   queue: QueueSong[];
@@ -9,142 +10,296 @@ interface QueuePanelProps {
   onRemove: (id: number) => void;
   onReorder: (orderedIds: number[]) => void;
   onPlay: (songId: number) => void;
+  onClear: () => void;
 }
 
-export function QueuePanel({ queue, currentSongId, onRemove, onReorder, onPlay }: QueuePanelProps) {
-  const [draggedId, setDraggedId] = useState<number | null>(null);
-  const [dragOverId, setDragOverId] = useState<number | null>(null);
+export function QueuePanel({
+  queue,
+  currentSongId,
+  onRemove,
+  onReorder,
+  onPlay,
+  onClear,
+}: QueuePanelProps) {
+  const [showHistory, setShowHistory] = useState(false);
 
-  const handleDragStart = (e: React.DragEvent, id: number) => {
-    setDraggedId(id);
-    e.dataTransfer.effectAllowed = "move";
-    // Slightly transparent ghost image
-    const crt = e.currentTarget.cloneNode(true) as HTMLElement;
-    crt.style.opacity = "0.5";
-    document.body.appendChild(crt);
-    e.dataTransfer.setDragImage(crt, 20, 20);
-    setTimeout(() => document.body.removeChild(crt), 0);
-  };
+  const currentIndex = currentSongId !== null
+    ? queue.findIndex((s) => s.id === currentSongId)
+    : -1;
 
-  const handleDragOver = (e: React.DragEvent, id: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (draggedId !== id) {
-      setDragOverId(id);
+  const prevSongs = currentIndex > 0 ? queue.slice(0, currentIndex) : [];
+  const currentSong = currentIndex >= 0 ? queue[currentIndex] : null;
+
+  // Derive the up-next list from props — single source of truth
+  const upNextFromProps = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue;
+
+  // Local ordered state for the up-next section (used during drag)
+  const [localUpNext, setLocalUpNext] = useState<QueueSong[]>(upNextFromProps);
+  const isDraggingRef = useRef(false);
+
+  // Sync from props whenever an external change occurs (not from an active drag)
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setLocalUpNext(upNextFromProps);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queue, currentSongId]);
+
+  const handleReorderEnd = () => {
+    isDraggingRef.current = false;
+    // Reconstruct full queue: previously played + current + new up-next order
+    const newOrder = [
+      ...prevSongs,
+      ...(currentSong ? [currentSong] : []),
+      ...localUpNext,
+    ];
+    onReorder(newOrder.map((s) => s.id));
   };
 
-  const handleDrop = (e: React.DragEvent, targetId: number) => {
-    e.preventDefault();
-    if (draggedId === null || draggedId === targetId) {
-      setDraggedId(null);
-      setDragOverId(null);
-      return;
-    }
-
-    const newQueue = [...queue];
-    const draggedIdx = newQueue.findIndex(s => s.id === draggedId);
-    const targetIdx = newQueue.findIndex(s => s.id === targetId);
-
-    const [draggedItem] = newQueue.splice(draggedIdx, 1);
-    newQueue.splice(targetIdx, 0, draggedItem);
-
-    onReorder(newQueue.map(s => s.id));
-    setDraggedId(null);
-    setDragOverId(null);
-  };
+  const totalCount = queue.length;
 
   if (queue.length === 0) {
     return (
-      <div className="glass-panel flex-1 rounded-2xl flex flex-col items-center justify-center p-8 text-center border-dashed border-white/10">
-        <Music2 className="w-12 h-12 text-white/10 mb-4" />
-        <h3 className="text-lg font-medium text-white/40">Queue is empty</h3>
-        <p className="text-sm text-white/20 mt-2 font-light">Search to add songs</p>
+      <div className="glass-panel flex-1 rounded-2xl flex flex-col items-center justify-center p-6 text-center border-dashed border-white/8 min-h-[140px]">
+        <Music2 className="w-8 h-8 text-white/10 mb-3" />
+        <p className="text-sm text-white/30 font-light">Queue is empty</p>
+        <p className="text-xs text-white/15 mt-1">Search above to add songs</p>
       </div>
     );
   }
 
   return (
-    <div className="glass-panel flex-1 rounded-2xl overflow-hidden flex flex-col">
-      <div className="p-4 border-b border-white/5 bg-white/[0.02]">
-        <h3 className="text-sm font-display font-medium tracking-widest uppercase text-muted-foreground">Up Next</h3>
+    <div className="glass-panel flex-1 rounded-2xl overflow-hidden flex flex-col min-h-0">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0 bg-white/[0.02]">
+        <div className="flex items-center gap-2.5">
+          <h3 className="text-xs font-medium tracking-widest uppercase text-white/50">Queue</h3>
+          <span className="bg-white/10 text-white/40 text-[10px] font-mono px-1.5 py-0.5 rounded-full">
+            {totalCount}
+          </span>
+        </div>
+        {totalCount > 0 && (
+          <motion.button
+            onClick={onClear}
+            className="flex items-center gap-1.5 text-[11px] text-white/25 hover:text-destructive/80 transition-colors"
+            whileTap={{ scale: 0.9 }}
+            title="Clear queue"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Clear all</span>
+          </motion.button>
+        )}
       </div>
-      
-      <div className="overflow-y-auto flex-1 p-2 space-y-1 custom-scrollbar">
-        {queue.map((song, idx) => {
-          const isCurrent = song.id === currentSongId;
-          const isDragging = song.id === draggedId;
-          const isDragOver = song.id === dragOverId;
-          
-          // Parse duration string to seconds roughly for display if needed, but we already have formatDuration
-          
-          return (
-            <div
-              key={song.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, song.id)}
-              onDragOver={(e) => handleDragOver(e, song.id)}
-              onDragLeave={() => setDragOverId(null)}
-              onDrop={(e) => handleDrop(e, song.id)}
-              onDoubleClick={() => onPlay(song.id)}
-              className={`
-                flex items-center gap-3 p-3 rounded-xl transition-all group relative
-                ${isCurrent ? "bg-primary/10 border border-primary/20" : "hover:bg-white/5 border border-transparent"}
-                ${isDragging ? "opacity-30" : "opacity-100"}
-                ${isDragOver ? "border-t-primary shadow-[0_-2px_10px_rgba(255,0,128,0.3)]" : ""}
-              `}
+
+      <div className="overflow-y-auto flex-1 custom-scrollbar">
+        {/* Previously Played */}
+        {prevSongs.length > 0 && (
+          <div>
+            <button
+              onClick={() => setShowHistory((v) => !v)}
+              className="w-full flex items-center gap-2 px-4 py-2 text-[11px] text-white/25 hover:text-white/45 transition-colors"
             >
-              {/* Drag handle */}
-              <div className="cursor-grab active:cursor-grabbing text-white/20 group-hover:text-white/50 px-1">
-                <GripVertical className="w-4 h-4" />
-              </div>
-
-              {/* Thumbnail */}
-              <div className={`relative w-16 h-10 rounded shrink-0 overflow-hidden bg-black/40 ${isCurrent ? 'ring-1 ring-primary/50' : ''}`}>
-                <img 
-                  src={song.thumbnail} 
-                  alt={song.title} 
-                  className={`w-full h-full object-cover transition-opacity ${isCurrent ? 'opacity-100' : 'opacity-70 group-hover:opacity-90'}`}
-                />
-                {isCurrent && (
-                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[1px]">
-                    <div className="flex gap-[2px] items-center h-3">
-                      <div className="w-[2px] h-full bg-primary animate-[bounce_1s_infinite] origin-bottom" style={{ animationDelay: '0ms' }} />
-                      <div className="w-[2px] h-2/3 bg-primary animate-[bounce_1s_infinite] origin-bottom" style={{ animationDelay: '200ms' }} />
-                      <div className="w-[2px] h-full bg-primary animate-[bounce_1s_infinite] origin-bottom" style={{ animationDelay: '400ms' }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0 flex flex-col justify-center">
-                <h4 className={`text-sm truncate font-medium transition-colors ${isCurrent ? "text-primary-foreground shadow-primary" : "text-white/80 group-hover:text-white"}`}>
-                  {song.title}
-                </h4>
-                <div className="flex items-center gap-2 mt-0.5 text-[10px] uppercase tracking-wider font-mono text-muted-foreground">
-                  <span className="truncate max-w-[120px]">{song.channel}</span>
-                  <span className="opacity-50">•</span>
-                  <span>{formatDuration(song.duration)}</span>
-                  <span className="opacity-50">•</span>
-                  <span className="truncate text-primary/60 normal-case tracking-normal">Added to Our Queue ❤️</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0 px-2">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onRemove(song.id); }}
-                  className="p-2 hover:bg-destructive/20 text-white/50 hover:text-destructive rounded-full transition-colors"
-                  title="Remove from queue"
+              {showHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              <span className="uppercase tracking-widest">Previously played ({prevSongs.length})</span>
+            </button>
+            <AnimatePresence>
+              {showHistory && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
                 >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+                  {prevSongs.map((song) => (
+                    <QueueItem
+                      key={song.id}
+                      song={song}
+                      isCurrent={false}
+                      isHistory={true}
+                      onRemove={onRemove}
+                      onPlay={onPlay}
+                    />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Now Playing */}
+        {currentSong && (
+          <div>
+            <div className="px-4 py-1.5 text-[11px] uppercase tracking-widest text-primary/60 font-medium">
+              Now Playing
             </div>
-          );
-        })}
+            <QueueItem
+              song={currentSong}
+              isCurrent={true}
+              isHistory={false}
+              onRemove={onRemove}
+              onPlay={onPlay}
+            />
+          </div>
+        )}
+
+        {/* Up Next — reorderable, single source of truth = localUpNext */}
+        {localUpNext.length > 0 && (
+          <div>
+            <div className="px-4 py-1.5 text-[11px] uppercase tracking-widest text-white/25 font-medium">
+              Up Next
+            </div>
+            <Reorder.Group
+              axis="y"
+              values={localUpNext}
+              onReorder={(newOrder) => {
+                isDraggingRef.current = true;
+                setLocalUpNext(newOrder);
+              }}
+              className="px-1.5 space-y-0.5"
+              onPointerUp={handleReorderEnd}
+            >
+              {localUpNext.map((song) => (
+                <Reorder.Item
+                  key={song.id}
+                  value={song}
+                  className="list-none"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -20, transition: { duration: 0.15 } }}
+                >
+                  <QueueItem
+                    song={song}
+                    isCurrent={false}
+                    isHistory={false}
+                    onRemove={onRemove}
+                    onPlay={onPlay}
+                    draggable
+                  />
+                </Reorder.Item>
+              ))}
+            </Reorder.Group>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+interface QueueItemProps {
+  song: QueueSong;
+  isCurrent: boolean;
+  isHistory: boolean;
+  onRemove: (id: number) => void;
+  onPlay: (id: number) => void;
+  draggable?: boolean;
+}
+
+function QueueItem({ song, isCurrent, isHistory, onRemove, onPlay, draggable }: QueueItemProps) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <motion.div
+      layout
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`
+        flex items-center gap-2.5 px-3 py-2 rounded-xl transition-colors relative group
+        ${isCurrent
+          ? "bg-primary/10 border border-primary/15"
+          : "hover:bg-white/[0.04] border border-transparent"
+        }
+        ${isHistory ? "opacity-40" : "opacity-100"}
+      `}
+    >
+      {/* Drag handle (only for up-next items) */}
+      {draggable ? (
+        <div className="cursor-grab active:cursor-grabbing text-white/15 group-hover:text-white/40 shrink-0 touch-none select-none">
+          <GripVertical className="w-3.5 h-3.5" />
+        </div>
+      ) : (
+        <div className="w-3.5 shrink-0" />
+      )}
+
+      {/* Thumbnail */}
+      <div
+        className={`relative w-[42px] h-[28px] rounded overflow-hidden shrink-0 bg-black/40 ${
+          isCurrent ? "ring-1 ring-primary/40" : ""
+        }`}
+      >
+        <img
+          src={song.thumbnail}
+          alt={song.title}
+          className={`w-full h-full object-cover transition-opacity ${
+            isCurrent ? "opacity-100" : "opacity-60 group-hover:opacity-85"
+          }`}
+          loading="lazy"
+        />
+        {isCurrent && (
+          <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+            <div className="flex gap-[2px] items-end h-2.5">
+              {[0, 200, 400].map((delay) => (
+                <motion.div
+                  key={delay}
+                  className="w-[2px] bg-primary rounded-full"
+                  animate={{ height: ["60%", "100%", "60%"] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: delay / 1000, ease: "easeInOut" }}
+                  style={{ height: "60%" }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className={`text-xs font-medium truncate transition-colors leading-snug ${
+          isCurrent ? "text-primary/90" : "text-white/70 group-hover:text-white/90"
+        }`}>
+          {song.title}
+        </p>
+        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-white/25 font-light">
+          <span className="truncate max-w-[90px]">{song.channel}</span>
+          {song.duration && (
+            <>
+              <span>·</span>
+              <span className="shrink-0">{formatDuration(song.duration)}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Actions (on hover) */}
+      <AnimatePresence>
+        {hovered && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex items-center gap-0.5 shrink-0"
+          >
+            {!isCurrent && (
+              <motion.button
+                onClick={() => onPlay(song.id)}
+                className="w-7 h-7 flex items-center justify-center rounded-full text-white/40 hover:text-white hover:bg-primary/20 transition-colors"
+                whileTap={{ scale: 0.85 }}
+                title="Play now"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+              </motion.button>
+            )}
+            <motion.button
+              onClick={() => onRemove(song.id)}
+              className="w-7 h-7 flex items-center justify-center rounded-full text-white/30 hover:text-destructive/80 hover:bg-destructive/10 transition-colors"
+              whileTap={{ scale: 0.85 }}
+              title="Remove"
+            >
+              <X className="w-3.5 h-3.5" />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

@@ -1,61 +1,66 @@
 # OURROOM
 
-A private web app ("a place only for us") for two people to search YouTube together and listen in perfect real-time sync, with a shared drag-to-reorder queue.
+A private listening room exclusively for Vasudev and Sana. Search YouTube together, add songs, and hear every play/pause/seek in perfect real-time sync — with a beautifully animated disc-player interface.
 
 ## Run & Operate
 
-Three artifacts, each with its own managed workflow (already running):
+Two workflows must be running:
 
-- `artifacts/api-server: API Server` — `pnpm --filter @workspace/api-server run dev` (Express API + Socket.IO, port 8080, mounted at `/api`)
-- `artifacts/web: web` — `pnpm --filter @workspace/web run dev` (React + Vite frontend, mounted at `/`)
-- `artifacts/mockup-sandbox: Component Preview Server` — canvas/design preview, not part of the shipped app
+- **`API Server`** — `PORT=8080 pnpm --filter @workspace/api-server run dev` (Express + Socket.IO, port 8080, mounted at `/api`)
+- **`Web`** — `PORT=22333 BASE_PATH=/ pnpm --filter @workspace/web run dev` (React + Vite, port 22333, mounted at `/`)
 
 Other useful commands:
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `pnpm run typecheck` — typecheck all packages
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks from OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` (Postgres, pre-provisioned), `SESSION_SECRET` (JWT signing), `YOUTUBE_API_KEY` (YouTube Data API v3, server-side only), `OURROOM_USERNAME`/`OURROOM_PASSWORD`/`OURROOM_USERNAME_2`/`OURROOM_PASSWORD_2` (the two accounts)
+
+## Required Environment Secrets
+
+| Secret | Purpose |
+|--------|---------|
+| `SESSION_SECRET` | JWT signing (already set) |
+| `OURROOM_USERNAME` | Login username |
+| `OURROOM_PASSWORD` | Login password |
+| `YOUTUBE_API_KEY` | YouTube Data API v3 (server-side only, never reaches client) |
+| `DATABASE_URL` | PostgreSQL connection (Drizzle ORM) |
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- Frontend: React + Vite, TanStack Query, wouter, Framer Motion, shadcn/ui, socket.io-client
-- API: Express 5 + Socket.IO
-- DB: PostgreSQL + Drizzle ORM (shared queue is persisted; live playback position/play-state is in-memory only on the api-server, not persisted)
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- **Runtime**: Node.js 20, TypeScript, pnpm workspaces
+- **Frontend**: React 19, Vite 7, TanStack Query, wouter, Framer Motion, Tailwind CSS 4, shadcn/ui, socket.io-client
+- **Backend**: Express 5, Socket.IO
+- **Database**: PostgreSQL + Drizzle ORM (queue persisted; playback state is in-memory only)
+- **API codegen**: Orval (from `lib/api-spec/openapi.yaml`)
 
-## Where things live
+## Architecture
 
-- API contract: `lib/api-spec/openapi.yaml` (auth, YouTube search proxy, queue CRUD/reorder)
-- DB schema: `lib/db/src/schema/queue.ts` (shared queue songs table)
-- Backend routes: `artifacts/api-server/src/routes/` (`auth.ts`, `youtube.ts`, `queue.ts`)
-- Real-time sync: `artifacts/api-server/src/socket.ts` (server), `artifacts/web/src/lib/socket.ts` + `playback-context.tsx` (client)
-- YouTube IFrame Player integration: `artifacts/web/src/lib/use-youtube-player.ts`, `artifacts/web/src/lib/youtube.ts`
+- **Queue** (`lib/db/src/schema/queue.ts`): Persistent. Songs stay in the queue until manually removed or cleared. `currentSongId` in socket state is a pointer — there's no auto-remove on skip. "Previously Played" = queue songs before the current index; "Up Next" = songs after.
+- **Playback state** (`artifacts/api-server/src/socket.ts`): In-memory, synced via Socket.IO. Fields: `queueSongId`, `videoId`, `isPlaying`, `positionSeconds`, `shuffle`, `repeat` (`off`|`one`|`all`).
+- **Presence** (`artifacts/api-server/src/socket.ts`): Tracked via `Map<username, Set<socketId>>` so multi-tab disconnect doesn't falsely remove a user.
+- **YouTube thumbnails**: Frontend upgrades thumbnail URLs to `maxresdefault.jpg` with fallback to the API-returned URL.
+- **Dynamic background**: Per-song hue derived from a deterministic hash of `videoId` (no canvas/CORS required). Blurred thumbnail backdrop layered on top.
 
-## Architecture decisions
+## Where Things Live
 
-- The mobile (Expo/React Native) app was fully removed; OURROOM is now a single web app so the browser-only YouTube IFrame Player API can be used directly.
-- Live playback state (current song, play/pause, position) is synced over Socket.IO and kept in memory on the API server only — it's ephemeral by design, unlike the queue which is DB-backed for persistence across reloads.
-- The YouTube Data API key never reaches the client; all search requests are proxied through `/api/youtube/search`.
+| What | Where |
+|------|-------|
+| API contract | `lib/api-spec/openapi.yaml` |
+| DB schema | `lib/db/src/schema/queue.ts` |
+| Backend routes | `artifacts/api-server/src/routes/` |
+| Socket sync | `artifacts/api-server/src/socket.ts` (server) · `artifacts/web/src/lib/socket.ts` + `playback-context.tsx` (client) |
+| YouTube player | `artifacts/web/src/lib/use-youtube-player.ts` |
+| Main page | `artifacts/web/src/pages/music-room.tsx` |
+| Components | `artifacts/web/src/components/` — `player-controls.tsx`, `search-panel.tsx`, `queue-panel.tsx` |
+| Global styles | `artifacts/web/src/index.css` |
 
-## Product
+## User Preferences
 
-- Private login for exactly two accounts (no signup).
-- Search YouTube, add results to a shared queue.
-- Real-time synchronized playback between both users via Socket.IO (play/pause/seek/song-change mirror instantly on both screens).
-- Drag-to-reorder queue, auto-advance to the next song when one ends.
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- This room is ONLY for Vasudev and Sana — private, no public access.
+- Premium aesthetic: Apple Music / Spotify quality feel with glassmorphism, aurora backgrounds, disc artwork rotation, Framer Motion animations.
+- Songs are NOT auto-removed from queue on skip. The queue pointer moves; songs persist until manually cleared.
 
 ## Gotchas
 
-- `pnpm run typecheck` fails on pre-existing shadcn scaffold files (`button-group.tsx`, `calendar.tsx` in both `artifacts/web` and `artifacts/mockup-sandbox`) due to a `@types/react` version-duplication issue. Not caused by app code; doesn't affect the running app.
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- `pnpm run typecheck` shows TS6305 errors for lib packages (no build step, they export from `.ts` source directly). Vite handles them at runtime — these do not affect the running app.
+- The `onReady` callback in `use-youtube-player.ts` captures `player` via closure — this is safe because `onReady` is always called asynchronously after the component has rendered.
+- Volume `handleVolumeChange` in `music-room.tsx` is intentionally NOT memoized — it must always call the current `player.setVolume` to avoid stale closures.

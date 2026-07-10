@@ -1,7 +1,30 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { loadYouTubeAPI } from "./youtube";
 
+// Minimal type declarations for the YouTube IFrame API
+interface YTPlayer {
+  playVideo(): void;
+  pauseVideo(): void;
+  seekTo(seconds: number, allowSeekAhead: boolean): void;
+  setVolume(volume: number): void;
+  getVolume(): number;
+  getCurrentTime(): number;
+  getPlayerState(): number;
+  getVideoData(): { video_id: string; title: string };
+  loadVideoById(options: { videoId: string; startSeconds?: number }): void;
+  destroy(): void;
+}
+
 type PlayerState = "UNSTARTED" | "ENDED" | "PLAYING" | "PAUSED" | "BUFFERING" | "CUED";
+
+const YT_STATE_MAP: Record<number, PlayerState> = {
+  [-1]: "UNSTARTED",
+  [0]: "ENDED",
+  [1]: "PLAYING",
+  [2]: "PAUSED",
+  [3]: "BUFFERING",
+  [5]: "CUED",
+};
 
 interface UseYouTubePlayerProps {
   videoId: string | null;
@@ -23,13 +46,22 @@ export function useYouTubePlayer({
   onReady,
 }: UseYouTubePlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<YTPlayer | null>(null);
   const [isApiReady, setIsApiReady] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
-  
-  // Track if we're currently seeking to avoid double-firing events
   const isSeekingRef = useRef(false);
 
+  // Use stable refs so player event callbacks don't capture stale values
+  const onStateChangeRef = useRef(onStateChange);
+  const onErrorRef = useRef(onError);
+  const onReadyRef = useRef(onReady);
+  const onPositionChangeRef = useRef(onPositionChange);
+  useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
+  useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
+  useEffect(() => { onPositionChangeRef.current = onPositionChange; }, [onPositionChange]);
+
+  // Load the YouTube IFrame API
   useEffect(() => {
     let mounted = true;
     loadYouTubeAPI().then(() => {
@@ -38,53 +70,47 @@ export function useYouTubePlayer({
     return () => { mounted = false; };
   }, []);
 
+  // Create the player once the API is ready
   useEffect(() => {
     if (!isApiReady || !containerRef.current) return;
+    if (playerRef.current) return; // already created
 
-    if (!playerRef.current) {
-      playerRef.current = new window.YT.Player(containerRef.current, {
-        height: '100%',
-        width: '100%',
-        videoId: videoId || '',
-        playerVars: {
-          autoplay: isPlaying ? 1 : 0,
-          controls: 0,
-          disablekb: 1,
-          fs: 0,
-          rel: 0,
-          modestbranding: 1,
-          iv_load_policy: 3,
-        },
-        events: {
-          onReady: (e: any) => {
-            setIsPlayerReady(true);
-            onReady();
-            if (positionSeconds > 0) {
-              e.target.seekTo(positionSeconds, true);
-            }
-          },
-          onStateChange: (e: any) => {
-            const states: Record<number, PlayerState> = {
-              [-1]: "UNSTARTED",
-              [0]: "ENDED",
-              [1]: "PLAYING",
-              [2]: "PAUSED",
-              [3]: "BUFFERING",
-              [5]: "CUED"
-            };
-            const state = states[e.data];
-            if (state) onStateChange(state);
-          },
-          onError: (e: any) => {
-            onError(e.data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    playerRef.current = new (window as any).YT.Player(containerRef.current, {
+      height: "100%",
+      width: "100%",
+      videoId: videoId ?? "",
+      playerVars: {
+        autoplay: 0,
+        controls: 0,
+        disablekb: 1,
+        fs: 0,
+        rel: 0,
+        modestbranding: 1,
+        iv_load_policy: 3,
+        playsinline: 1,
+      },
+      events: {
+        onReady: (e: { target: YTPlayer }) => {
+          setIsPlayerReady(true);
+          onReadyRef.current();
+          if (positionSeconds > 0) {
+            e.target.seekTo(positionSeconds, true);
           }
-        }
-      });
-    }
+        },
+        onStateChange: (e: { data: number }) => {
+          const state = YT_STATE_MAP[e.data];
+          if (state) onStateChangeRef.current(state);
+        },
+        onError: (e: { data: number }) => {
+          onErrorRef.current(e.data);
+        },
+      },
+    }) as YTPlayer;
 
     return () => {
       if (playerRef.current) {
-        playerRef.current.destroy();
+        try { playerRef.current.destroy(); } catch { /* ignore */ }
         playerRef.current = null;
         setIsPlayerReady(false);
       }
@@ -92,74 +118,69 @@ export function useYouTubePlayer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isApiReady]);
 
-  // Handle Video ID change
+  // Handle Video ID changes
   useEffect(() => {
-    if (isPlayerReady && playerRef.current && videoId) {
-      const currentVideoId = playerRef.current.getVideoData()?.video_id;
-      if (currentVideoId !== videoId) {
-        playerRef.current.loadVideoById({
-          videoId: videoId,
-          startSeconds: positionSeconds
-        });
-      }
+    if (!isPlayerReady || !playerRef.current) return;
+    const player = playerRef.current;
+    const currentVideoId = player.getVideoData()?.video_id;
+    if (videoId && currentVideoId !== videoId) {
+      player.loadVideoById({ videoId, startSeconds: 0 });
+    } else if (!videoId && currentVideoId) {
+      // Clear player by loading nothing — just pause
+      player.pauseVideo();
     }
-  }, [videoId, isPlayerReady]); // deliberately omitting positionSeconds to avoid reloading on position sync
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId, isPlayerReady]);
 
-  // Handle Play/Pause change
+  // Handle play/pause changes
   useEffect(() => {
-    if (isPlayerReady && playerRef.current) {
-      const playerState = playerRef.current.getPlayerState();
-      
-      if (isPlaying && playerState !== 1 && playerState !== 3) {
-        playerRef.current.playVideo();
-      } else if (!isPlaying && playerState === 1) {
-        playerRef.current.pauseVideo();
-      }
+    if (!isPlayerReady || !playerRef.current) return;
+    const player = playerRef.current;
+    const playerState = player.getPlayerState();
+    if (isPlaying && playerState !== 1 && playerState !== 3) {
+      player.playVideo();
+    } else if (!isPlaying && playerState === 1) {
+      player.pauseVideo();
     }
   }, [isPlaying, isPlayerReady]);
 
-  // Handle Time sync
+  // Handle time sync — only seek if significantly out of sync
   useEffect(() => {
-    if (isPlayerReady && playerRef.current) {
-      const currentTime = playerRef.current.getCurrentTime() || 0;
-      const diff = Math.abs(currentTime - positionSeconds);
-      
-      // If we are more than 2 seconds out of sync, seek to the target time
-      if (diff > 2 && !isSeekingRef.current) {
-        isSeekingRef.current = true;
-        playerRef.current.seekTo(positionSeconds, true);
-        setTimeout(() => { isSeekingRef.current = false; }, 500);
-      }
+    if (!isPlayerReady || !playerRef.current || isSeekingRef.current) return;
+    const currentTime = playerRef.current.getCurrentTime() ?? 0;
+    const diff = Math.abs(currentTime - positionSeconds);
+    if (diff > 2) {
+      isSeekingRef.current = true;
+      playerRef.current.seekTo(positionSeconds, true);
+      setTimeout(() => { isSeekingRef.current = false; }, 800);
     }
   }, [positionSeconds, isPlayerReady]);
 
-  // Continuous position polling
+  // Continuous position polling (while playing)
   useEffect(() => {
     if (!isPlayerReady) return;
-    
     const interval = setInterval(() => {
       if (playerRef.current && playerRef.current.getPlayerState() === 1) {
-        onPositionChange(playerRef.current.getCurrentTime() || 0);
+        onPositionChangeRef.current(playerRef.current.getCurrentTime() ?? 0);
       }
     }, 1000);
-    
     return () => clearInterval(interval);
-  }, [isPlayerReady, onPositionChange]);
+  }, [isPlayerReady]);
 
-  const seekTo = (seconds: number) => {
+  const seekTo = useCallback((seconds: number) => {
     if (isPlayerReady && playerRef.current) {
       isSeekingRef.current = true;
       playerRef.current.seekTo(seconds, true);
-      onPositionChange(seconds);
-      setTimeout(() => { isSeekingRef.current = false; }, 500);
+      onPositionChangeRef.current(seconds);
+      setTimeout(() => { isSeekingRef.current = false; }, 800);
     }
-  };
+  }, [isPlayerReady]);
 
-  const setVolume = (volume: number) => {
+  const setVolume = useCallback((volume: number) => {
     if (isPlayerReady && playerRef.current) {
       playerRef.current.setVolume(volume);
     }
-  };
+  }, [isPlayerReady]);
 
   return { containerRef, seekTo, setVolume, isReady: isPlayerReady };
 }

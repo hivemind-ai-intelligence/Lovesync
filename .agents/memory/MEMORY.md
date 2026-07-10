@@ -1,1 +1,4 @@
 - [OURROOM auth architecture](ourroom-auth.md) — JWT via SESSION_SECRET; token stored in AsyncStorage; all protected routes require Bearer header.
+- [OURROOM queue model](ourroom-queue-model.md) — Songs never auto-removed on skip; currentSongId is a pointer; Previously Played = queue before index, Up Next = after.
+- [OURROOM socket presence](ourroom-socket-presence.md) — Use Map<username, Set<socketId>> not Set<username> for multi-tab correctness.
+- [OURROOM volume closure](ourroom-volume-closure.md) — handleVolumeChange must NOT be memoized with useCallback; must always call current player.setVolume to avoid stale closures.
