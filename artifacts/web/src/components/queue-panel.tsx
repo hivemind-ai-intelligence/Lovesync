@@ -127,7 +127,7 @@ export function QueuePanel({ queue, currentSongId, onRemove, onReorder, onPlay }
                   <span className="opacity-50">•</span>
                   <span>{formatDuration(song.duration)}</span>
                   <span className="opacity-50">•</span>
-                  <span className="truncate max-w-[60px] text-white/30">{song.addedBy}</span>
+                  <span className="truncate text-primary/60 normal-case tracking-normal">Added to Our Queue ❤️</span>
                 </div>
               </div>
 

@@ -9,7 +9,6 @@ export const queueSongsTable = pgTable("queue_songs", {
   channel: text("channel").notNull(),
   thumbnail: text("thumbnail").notNull(),
   duration: text("duration").notNull(),
-  addedBy: text("added_by").notNull(),
   addedAt: doublePrecision("added_at").notNull(),
   position: integer("position").notNull(),
 });

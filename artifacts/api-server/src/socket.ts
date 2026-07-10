@@ -50,13 +50,40 @@ export function setupSocket(httpServer: HttpServer): SocketIOServer {
 
     socket.emit("playback:sync", state);
 
-    socket.on(
-      "playback:update",
-      (payload: Partial<PlaybackState>) => {
-        Object.assign(state, payload, { updatedAt: Date.now() });
-        socket.broadcast.emit("playback:sync", state);
-      },
-    );
+    socket.on("playback:update", (raw: unknown) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+      const payload = raw as Record<string, unknown>;
+
+      // Whitelist allowed keys and validate types/ranges before applying.
+      const next: Partial<PlaybackState> = {};
+
+      if ("queueSongId" in payload) {
+        const v = payload["queueSongId"];
+        if (v === null || (typeof v === "number" && Number.isFinite(v) && v > 0)) {
+          next.queueSongId = v as number | null;
+        }
+      }
+      if ("videoId" in payload) {
+        const v = payload["videoId"];
+        if (v === null || (typeof v === "string" && v.length <= 32)) {
+          next.videoId = v as string | null;
+        }
+      }
+      if ("isPlaying" in payload) {
+        if (typeof payload["isPlaying"] === "boolean") {
+          next.isPlaying = payload["isPlaying"];
+        }
+      }
+      if ("positionSeconds" in payload) {
+        const v = payload["positionSeconds"];
+        if (typeof v === "number" && Number.isFinite(v) && v >= 0 && v < 86400) {
+          next.positionSeconds = v;
+        }
+      }
+
+      Object.assign(state, next, { updatedAt: Date.now() });
+      socket.broadcast.emit("playback:sync", state);
+    });
 
     socket.on("queue:changed", () => {
       socket.broadcast.emit("queue:changed");

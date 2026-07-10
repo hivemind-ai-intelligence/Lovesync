@@ -186,20 +186,13 @@ function MusicRoom() {
   };
 
   const handleRemove = (id: number) => {
-    // If removing currently playing song
+    // If removing the currently playing song, skip first (which internally
+    // calls safeRemove for the current song). Don't double-delete.
     if (id === playbackState.queueSongId) {
       handleSkip();
+      return;
     }
-    
-    removeSong.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetQueueQueryKey() });
-          broadcastQueueChange();
-        }
-      }
-    );
+    safeRemove(id);
   };
 
   const handleReorder = (orderedIds: number[]) => {
@@ -271,7 +264,6 @@ function MusicRoom() {
             <h1 className="font-display tracking-widest text-xl text-white/90 uppercase">OurRoom</h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm font-mono text-white/50">{me.username}</span>
             <button onClick={handleLogout} className="text-white/30 hover:text-white/80 transition-colors">
               <LogOut className="w-4 h-4" />
             </button>

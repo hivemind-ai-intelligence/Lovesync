@@ -71,7 +71,6 @@ export const GetQueueResponseItem = zod.object({
   "channel": zod.string(),
   "thumbnail": zod.string(),
   "duration": zod.string(),
-  "addedBy": zod.string(),
   "addedAt": zod.number(),
   "position": zod.number()
 })
@@ -101,7 +100,6 @@ export const AddQueueSongResponse = zod.object({
   "channel": zod.string(),
   "thumbnail": zod.string(),
   "duration": zod.string(),
-  "addedBy": zod.string(),
   "addedAt": zod.number(),
   "position": zod.number()
 })
@@ -133,7 +131,6 @@ export const ReorderQueueResponseItem = zod.object({
   "channel": zod.string(),
   "thumbnail": zod.string(),
   "duration": zod.string(),
-  "addedBy": zod.string(),
   "addedAt": zod.number(),
   "position": zod.number()
 })

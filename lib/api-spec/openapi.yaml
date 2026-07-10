@@ -296,8 +296,6 @@ components:
           type: string
         duration:
           type: string
-        addedBy:
-          type: string
         addedAt:
           type: number
         position:
@@ -309,7 +307,6 @@ components:
         - channel
         - thumbnail
         - duration
-        - addedBy
         - addedAt
         - position
 

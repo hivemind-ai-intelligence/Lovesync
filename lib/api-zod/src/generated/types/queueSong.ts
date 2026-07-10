@@ -13,7 +13,6 @@ export interface QueueSong {
   channel: string;
   thumbnail: string;
   duration: string;
-  addedBy: string;
   addedAt: number;
   position: number;
 }

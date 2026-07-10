@@ -59,7 +59,6 @@ router.post(
         channel: channel.slice(0, 300),
         thumbnail: thumbnail.slice(0, 1000),
         duration: duration.slice(0, 20),
-        addedBy: req.user!.username,
         addedAt: Date.now(),
         position: maxPosition + 1,
       })
@@ -107,17 +106,26 @@ router.patch(
       return res.status(400).json({ error: "Invalid reorder payload" });
     }
 
+    // Require the payload to be the COMPLETE current queue — same IDs, no extras, no missing.
     const existing = await db
       .select({ id: queueSongsTable.id })
-      .from(queueSongsTable)
-      .where(inArray(queueSongsTable.id, orderedIds));
+      .from(queueSongsTable);
 
-    if (existing.length !== orderedIds.length) {
-      return res.status(400).json({ error: "Invalid reorder payload" });
+    const existingIds = new Set(existing.map((r) => r.id));
+    const payloadIds = new Set(orderedIds as number[]);
+
+    if (
+      existingIds.size !== payloadIds.size ||
+      [...existingIds].some((id) => !payloadIds.has(id))
+    ) {
+      return res.status(400).json({
+        error:
+          "Reorder payload must contain exactly the current queue IDs, no more, no less",
+      });
     }
 
     await Promise.all(
-      orderedIds.map((id, index) =>
+      (orderedIds as number[]).map((id, index) =>
         db
           .update(queueSongsTable)
           .set({ position: index })
